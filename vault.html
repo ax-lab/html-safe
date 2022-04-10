@@ -243,8 +243,6 @@
 					set_error(p.pass_unlock, true);
 					p.pass_unlock.focus();
 				} else {
-					p.txt_password.value = password;
-					p.txt_confirm.value = password;
 					p.content.innerHTML = content;
 					set_toolbar('show');
 				}
@@ -255,6 +253,9 @@
 	function edit() {
 		const p = page();
 		const content = get_content();
+		const password = p.pass_unlock.value;
+		p.txt_password.value = password;
+		p.txt_confirm.value = password;
 		p.txt_title.value = content.title;
 		p.txt_codes.value = content.codes.join('\n');
 		p.edit_notes.innerHTML = content.notes;
@@ -263,9 +264,19 @@
 		p.txt_password.focus();
 	}
 
+	function clear_form() {
+		const p = page();
+		p.txt_password.value = '';
+		p.txt_confirm.value = '';
+		p.txt_title.value = '';
+		p.txt_codes.value = '';
+		p.edit_notes.innerHTML = '';
+	}
+
 	function cancel() {
 		set_toolbar('show');
 		set_show_form(false);
+		clear_form();
 	}
 
 	function save() {
@@ -281,11 +292,13 @@
 		};
 
 		enable(false);
-		set_show_form(false);
-
 		const title = p.txt_title.value.trim();
 		const codes = p.txt_codes.value.trim().split('\n').map(x => x.trim()).filter(x => !!x);
 		const notes = p.edit_notes.innerHTML;
+		const password = p.txt_password.value;
+
+		clear_form();
+		set_show_form(false);
 
 		document.documentElement.querySelector('title').textContent = `Vault - ${title}`;
 
@@ -308,7 +321,6 @@
 		);
 
 		const content = p.content.innerHTML;
-		const password = p.txt_password.value;
 		encrypt(password, content)
 			.then(result => {
 				p.vault.textContent = result;
@@ -362,6 +374,9 @@
 		const p = page();
 		p.form.style.display = show ? '' : 'none';
 		p.content.style.display = show ? 'none' : '';
+		if (!show) {
+			clear_form();
+		}
 	}
 
 	//========================================================================//
