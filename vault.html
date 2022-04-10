@@ -287,6 +287,8 @@
 		const codes = p.txt_codes.value.trim().split('\n').map(x => x.trim()).filter(x => !!x);
 		const notes = p.edit_notes.innerHTML;
 
+		document.documentElement.querySelector('title').textContent = `Vault - ${title}`;
+
 		p.content.innerHTML = '';
 		p.content.appendChild(el('h1', { text: title }));
 		p.content.appendChild(
