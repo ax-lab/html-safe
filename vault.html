@@ -1,0 +1,447 @@
+<!doctype html>
+<html>
+
+<head>
+	<title>Note</title>
+	<meta charset="utf-8">
+	<style>
+		#vault {
+			display: none;
+		}
+
+		:root {
+			--base-padding: 20px;
+			--edit-padding: 10px;
+			--font-monospace:
+				Consolas, "Andale Mono WT", "Andale Mono", "Lucida Console",
+				"Lucida Sans Typewriter", "DejaVu Sans Mono", "Bitstream Vera Sans Mono",
+				"Liberation Mono", "Nimbus Mono L", Monaco, "Courier New", Courier, monospace;
+		}
+
+		html {
+			font-size: 16px;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		.error {
+			background-color: #FBB;
+		}
+
+		*:focus {
+			outline: 1px solid #F80;
+		}
+
+		form {
+			margin: auto;
+			width: 70%;
+			padding: var(--base-padding);
+		}
+
+		label {
+			display: block;
+			margin-bottom: calc(var(--base-padding) / 2);
+		}
+
+		label::after {
+			content: ':';
+		}
+
+		label:not(:first-of-type) {
+			margin-top: var(--base-padding);
+		}
+
+		button {
+			padding: var(--edit-padding);
+			min-width: 70px;
+		}
+
+		.toolbar input {
+			padding: var(--edit-padding);
+			width: 200px;
+		}
+
+		input,
+		textarea,
+		.editor {
+			width: 100%;
+			max-width: 700px;
+			padding: var(--edit-padding);
+			border: 1px solid #AAA;
+			border-radius: 5px;
+		}
+
+		textarea {
+			font-family: var(--font-monospace);
+		}
+
+		.editor {
+			display: inline-block;
+			font-family: var(--font-monospace);
+			margin: 0;
+		}
+
+		#content {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		#show-codes {
+			display: inline-block;
+			margin: auto;
+			text-align: center;
+			column-gap: 1cm;
+		}
+
+		#show-codes p {
+			font-family: var(--font-monospace);
+			margin: 0;
+		}
+
+		#show-notes {
+			font-family: var(--font-monospace);
+			padding: 0.5cm;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="toolbar">
+		<input id="password-unlock" type="password">
+		<button id="btn-save" onclick="save()">Save</button>
+		<button id="btn-cancel" onclick="cancel()">Cancel</button>
+		<button id="btn-edit" onclick="edit()">Edit</button>
+		<button id="btn-lock" onclick="lock()">Lock</button>
+		<button id="btn-unlock" onclick="unlock()">Unlock</button>
+		<button id="btn-download" onclick="download()">Download</button>
+		<hr>
+	</div>
+	<form onsubmit="return false">
+		<label for="txt-password">Password</label>
+		<input id="txt-password" type="password" oninput="validate_pass()">
+		<label for="txt-confirm">Confirm</label>
+		<input id="txt-confirm" type="password" oninput="validate_pass()">
+		<label for="txt-title">Title</label>
+		<input id="txt-title" type="text">
+		<label for="txt-codes">Codes</label>
+		<textarea id="txt-codes" rows="10"></textarea>
+		<label for="txt-notes">Notes</label>
+		<div id="txt-notes" class="editor" contenteditable="true"></div>
+	</form>
+	<div id="content"></div>
+	<div id="vault"></div>
+</body>
+
+</html>
+
+<script>
+
+	const error_class = 'error';
+
+	let is_saving = false;
+	let saving_id = 0;
+
+	ready(() => {
+		const vault = id('vault').textContent.trim();
+		set_toolbar(vault ? 'lock' : 'edit');
+		set_show_form(!vault);
+	});
+
+	function validate_pass(is_submit) {
+		const pass1 = id('txt-password');
+		const pass2 = id('txt-confirm');
+		pass1.classList.remove(error_class);
+		pass2.classList.remove(error_class);
+		if (!pass1.value) {
+			is_submit && pass1.classList.add(error_class);
+			return false;
+		}
+		if (pass1.value != pass2.value) {
+			(is_submit || (pass2.value && !pass1.value.startsWith(pass2.value))) && pass2.classList.add(error_class);
+			return false;
+		}
+		return true;
+	}
+
+	function edit() {
+		const el_content = id('content');
+		const title = el_content.querySelector('h1')?.textContent || '';
+		const codes = [...el_content.querySelectorAll('#show-codes > p')].map(x => x.textContent);
+		const notes = el_content.querySelector('#show-notes')?.innerHTML || '';
+
+		id('txt-title').value = title;
+		id('txt-codes').value = codes.join('\n');
+		id('txt-notes').innerHTML = notes;
+
+		set_toolbar('edit');
+		set_show_form(true);
+		id('txt-title').focus();
+	}
+
+	function save() {
+		if (!validate_pass(true)) {
+			return;
+		}
+
+		const el_content = id('content');
+
+		const title = id('txt-title').value;
+		const codes = id('txt-codes').value.trim().
+			split('\n').map(x => x.trim()).filter(x => !!x);
+		const notes = id('txt-notes').innerHTML;
+
+		const el_title = el('h1');
+		el_title.textContent = title;
+
+		const max_columns =
+			codes.some(x => x.length >= 30)
+				? 1
+				: codes.some(x => x.length >= 15)
+					? 2 : 3;
+		const column_count = Math.max(1, Math.min(max_columns, Math.ceil(codes.length / 5)));
+
+		const el_codes = el('div');
+		el_codes.id = 'show-codes';
+		el_codes.style.columnCount = column_count;
+		for (const it of codes) {
+			const p = el('p');
+			p.textContent = it;
+			el_codes.appendChild(p);
+		}
+
+		const el_notes = el('div');
+		el_notes.id = 'show-notes';
+		el_notes.innerHTML = notes;
+
+		el_content.innerHTML = '';
+		el_content.appendChild(el_title);
+		if (codes.length) {
+			el_content.appendChild(el_codes);
+		}
+
+		el_content.appendChild(el_notes);
+
+		set_toolbar('show');
+		set_show_form(false);
+
+		let save_id = ++saving_id;
+		let content = el_content.innerHTML;
+		let password = id('txt-password').value;
+		saving = true;
+		encrypt(password, content).then(result => {
+			if (saving_id == save_id) {
+				saving = false;
+				id('vault').textContent = result;
+			}
+		}).catch(err => alert(err));
+	}
+
+	function cancel() {
+		set_toolbar('show');
+		set_show_form(false);
+	}
+
+	function lock() {
+		id('password-unlock').value = '';
+		set_toolbar('lock');
+		set_show_form(false);
+		id('content').innerHTML = '';
+	}
+
+	function unlock() {
+		const el_password = id('password-unlock');
+		const password = el_password.value;
+		const encrypted = id('vault').textContent.trim();
+
+		el_password.classList.remove(error_class);
+		if (!password) {
+			el_password.classList.add(error_class);
+			el_password.focus();
+			return;
+		}
+
+		set_toolbar('none');
+		const content = decrypt(password, encrypted).then(content => {
+			if (content === false) {
+				set_toolbar('lock');
+				el_password.classList.add(error_class);
+				el_password.focus();
+				return;
+			}
+
+			id('txt-password').value = password;
+			id('txt-confirm').value = password;
+			id('content').innerHTML = content;
+			set_toolbar('show');
+		});
+	}
+
+	let is_downloading = false;
+
+	function download() {
+		if (is_downloading) {
+			return;
+		}
+
+		is_downloading = true;
+		if (is_saving) {
+			setTimeout(download, 10);
+			return;
+		}
+
+		try {
+			const html = document.documentElement.outerHTML;
+			const encoder = new TextEncoder();
+			const data = `data:text/html;base64,${to_base64(encoder.encode(html))}`;
+			const link = el('a');
+			link.download = 'test.html';
+			link.href = data;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+		} finally {
+			is_downloading = false;
+		}
+	}
+
+	function set_toolbar(mode) {
+		const pass = id('password-unlock');
+		const edit = id('btn-edit');
+		const save = id('btn-save');
+		const cancel = id('btn-cancel');
+		const lock = id('btn-lock');
+		const unlock = id('btn-unlock');
+		const download = id('btn-download');
+		const set = (btn, show) => btn.style.display = show ? '' : 'none';
+
+		const is_edit = mode == 'edit';
+		const is_show = mode == 'show';
+		const is_lock = mode == 'lock';
+
+		set(pass, is_lock);
+		set(edit, is_show);
+		set(save, is_edit);
+		set(cancel, is_edit);
+		set(lock, is_show);
+		set(unlock, is_lock);
+		set(download, is_lock);
+	}
+
+	function set_show_form(show) {
+		const form = q('form');
+		const text = id('content');
+		form.style.display = show ? '' : 'none';
+		text.style.display = show ? 'none' : '';
+	}
+
+	//========================================================================//
+	// Helpers
+	//========================================================================//
+
+	function id(id) {
+		return document.getElementById(id);
+	}
+
+	function el(tag) {
+		return document.createElement(tag);
+	}
+
+	function q(query) {
+		return document.querySelector(query);
+	}
+
+	function ready(fn) {
+		if (document.readyState == 'complete' || document.readyState == 'interactive') {
+			setTimeout(fn, 0);
+		} else {
+			document.addEventListener('DOMContentLoaded', fn);
+		}
+	}
+
+	//========================================================================//
+	// Encryption
+	//========================================================================//
+
+	async function encrypt(key, data) {
+		const encoder = new TextEncoder();
+		const iv = window.crypto.getRandomValues(new Uint8Array(12));
+		const salt = generate_salt();
+		const encoded_data = encoder.encode(data);
+		const derived_key = await derive_key(key, salt);
+		const encrypted_data = new Uint8Array(await window.crypto.subtle.encrypt({
+			name: 'AES-GCM',
+			iv: iv,
+		}, derived_key, encoded_data));
+
+		const result = [to_base64(iv), to_base64(salt), to_base64(encrypted_data)];
+		return result.join(';;')
+	}
+
+	async function decrypt(key, value) {
+		const parts = value.split(';;');
+		if (parts.length != 3) {
+			return false;
+		}
+
+		try {
+			const iv = from_base64(parts[0]);
+			const salt = from_base64(parts[1]);
+			const encrypted_data = from_base64(parts[2]);
+			const derived_key = await derive_key(key, salt);
+			const output = await window.crypto.subtle.decrypt({
+				name: 'AES-GCM',
+				iv: iv,
+			}, derived_key, encrypted_data)
+
+			const decoder = new TextDecoder();
+			return decoder.decode(output);
+		} catch (err) {
+			console.error(err);
+			return false;
+		}
+	}
+
+	async function derive_key(password, salt) {
+		const encoder = new TextEncoder();
+		const encoded_password = encoder.encode(password);
+		const input_key = await window.crypto.subtle.importKey('raw', encoded_password, 'PBKDF2', false, ['deriveKey']);
+
+		const algorithm = {
+			name: 'PBKDF2',
+			salt: salt,
+			iterations: 1000000,
+			hash: 'SHA-512'
+		}
+		const key = await window.crypto.subtle.deriveKey(algorithm, input_key, {
+			name: 'AES-GCM',
+			length: 256,
+		}, false, ['encrypt', 'decrypt']);
+
+		return key;
+	}
+
+	function generate_salt() {
+		return window.crypto.getRandomValues(new Uint8Array(16));
+	}
+
+	function to_base64(bytes) {
+		let result = '';
+		for (const byte of bytes) {
+			result += String.fromCharCode(byte);
+		}
+		return btoa(result);
+	}
+
+	function from_base64(encoded_string) {
+		const aux = atob(encoded_string);
+		const bytes = new Uint8Array(aux.length);
+		for (let i = 0; i < aux.length; i++) {
+			bytes[i] = aux.charCodeAt(i);
+		}
+		return bytes;
+	}
+
+</script>
