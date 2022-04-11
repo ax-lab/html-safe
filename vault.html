@@ -89,9 +89,12 @@
 			align-items: center;
 		}
 
+		#content>* {
+			margin-bottom: 1cm;
+		}
+
 		#show-codes {
 			display: inline-block;
-			margin: auto;
 			text-align: center;
 			column-gap: 1cm;
 		}
@@ -101,9 +104,14 @@
 			margin: 0;
 		}
 
+		#edit-main,
+		#show-main {
+			text-align: center;
+		}
+
 		#show-notes {
 			font-family: var(--font-monospace);
-			padding: 0.5cm;
+			margin: 0.5cm;
 		}
 
 		@page {
@@ -136,10 +144,12 @@
 	<form id="form" onsubmit="return false">
 		<label for="txt-password">Password</label>
 		<input id="txt-password" type="password" oninput="validate_pass()">
-		<label for="txt-confirm">Confirm</label>
+		<label for="txt-confirm">Confirm password</label>
 		<input id="txt-confirm" type="password" oninput="validate_pass()">
 		<label for="txt-title">Title</label>
 		<input id="txt-title" type="text">
+		<label onclick="page().edit_main.focus()">Main text</label>
+		<div id="edit-main" class="editor" contenteditable="true"></div>
 		<label for="txt-codes">Codes</label>
 		<textarea id="txt-codes" rows="10"></textarea>
 		<label onclick="page().edit_notes.focus()">Notes</label>
@@ -181,6 +191,7 @@
 			txt_confirm: id('txt-confirm'),
 			txt_title: id('txt-title'),
 			txt_codes: id('txt-codes'),
+			edit_main: id('edit-main'),
 			edit_notes: id('edit-notes'),
 		}
 	}
@@ -195,6 +206,7 @@
 		const qs = sel => p.content.querySelectorAll(sel)
 		return {
 			title: q('h1')?.textContent || '',
+			main: q('#show-main')?.innerHTML || '',
 			notes: q('#show-notes')?.innerHTML || '',
 			codes: [...qs('#show-codes > p')].map(x => x.textContent),
 		}
@@ -228,7 +240,7 @@
 			now.getMinutes().toString().padStart(2, '0'),
 			now.getSeconds().toString().padStart(2, '0'),
 		].join('');
-		link.download = `vault_${date}T${time}.html`;
+		link.download = `vault_${date}_${time}.html`;
 		link.href = data;
 		document.body.appendChild(link);
 		link.click();
@@ -272,6 +284,7 @@
 		p.txt_confirm.value = password;
 		p.txt_title.value = content.title;
 		p.txt_codes.value = content.codes.join('\n');
+		p.edit_main.innerHTML = content.main;
 		p.edit_notes.innerHTML = content.notes;
 		set_toolbar('edit');
 		set_show_form(true);
@@ -284,6 +297,7 @@
 		p.txt_confirm.value = '';
 		p.txt_title.value = '';
 		p.txt_codes.value = '';
+		p.edit_main.innerHTML = '';
 		p.edit_notes.innerHTML = '';
 	}
 
@@ -308,6 +322,7 @@
 		enable(false);
 		const title = p.txt_title.value.trim();
 		const codes = p.txt_codes.value.trim().split('\n').map(x => x.trim()).filter(x => !!x);
+		const main = p.edit_main.innerHTML;
 		const notes = p.edit_notes.innerHTML;
 		const password = p.txt_password.value;
 
@@ -320,20 +335,29 @@
 		document.documentElement.querySelector('title').textContent = `Vault - ${title}`;
 
 		p.content.innerHTML = '';
-		p.content.appendChild(el('h1', { text: title }));
-		p.content.appendChild(
+		title && p.content.appendChild(el('h1', { text: title }));
+		main && p.content.appendChild(
+			el('div', { id: 'show-main', html: main })
+		);
+		codes.length && p.content.appendChild(
 			el('div', {
 				id: 'show-codes',
 				children: codes.map(text => el('p', { text })),
 				config: node => {
 					const max_len = codes.map(x => x.length).reduce((x, acc) => Math.max(x, acc), 0);
-					const max_cols = (max_len >= 30 ? 1 : (max_len >= 15 ? 2 : 3));
+					const max_cols = (
+						max_len >= 30
+							? 1
+							: max_len >= 15
+								? 2
+								: max_len >= 8
+									? 3 : 4);
 					const cols = Math.max(1, Math.min(max_cols, Math.ceil(codes.length / 5)));
 					node.style.columnCount = cols;
 				},
 			})
 		);
-		p.content.appendChild(
+		notes && p.content.appendChild(
 			el('div', { id: 'show-notes', html: notes })
 		);
 
