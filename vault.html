@@ -105,6 +105,20 @@
 			font-family: var(--font-monospace);
 			padding: 0.5cm;
 		}
+
+		@page {
+			margin: 1cm;
+			size: 14cm 20cm;
+		}
+
+		@media print {
+
+			#toolbar,
+			#form {
+				display: none;
+			}
+
+		}
 	</style>
 </head>
 
