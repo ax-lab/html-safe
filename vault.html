@@ -297,6 +297,9 @@
 		const notes = p.edit_notes.innerHTML;
 		const password = p.txt_password.value;
 
+		// since the form is cleared, we need to save password changes for the edit
+		p.pass_unlock.value = password;
+
 		clear_form();
 		set_show_form(false);
 
