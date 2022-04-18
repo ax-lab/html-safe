@@ -141,7 +141,7 @@
 
 <body>
 	<div id="toolbar">
-		<input id="pass-unlock" type="password">
+		<input id="pass-unlock" type="password" onkeypress="on_pass_unlock_keypress(event)">
 		<button id="btn-save" onclick="save()">Save</button>
 		<button id="btn-cancel" onclick="cancel()">Cancel</button>
 		<button id="btn-edit" onclick="edit()">Edit</button>
@@ -150,7 +150,7 @@
 		<button id="btn-download" onclick="download()">Download</button>
 		<hr>
 	</div>
-	<form id="form" onsubmit="return false">
+	<form id="form" onsubmit="on_submit_form(event)">
 		<label for="txt-password">Password</label>
 		<input id="txt-password" type="password" oninput="validate_pass()">
 		<label for="txt-confirm">Confirm password</label>
@@ -163,6 +163,7 @@
 		<textarea id="txt-codes" rows="10"></textarea>
 		<label onclick="page().edit_notes.focus()">Notes</label>
 		<div id="edit-notes" class="editor" contenteditable="true"></div>
+		<input type="submit" hidden>
 	</form>
 	<div id="content"></div>
 	<div id="vault"></div>
@@ -181,6 +182,17 @@
 			set_show_form(false);
 		}
 	});
+
+	function on_pass_unlock_keypress(ev) {
+		if (ev.key == 'Enter') {
+			unlock();
+		}
+	}
+
+	function on_submit_form(ev) {
+		ev.preventDefault();
+		save();
+	}
 
 	function page() {
 		const id = (id) => document.getElementById(id);
