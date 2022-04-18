@@ -139,7 +139,7 @@
 	</style>
 </head>
 
-<body>
+<body data-filename="">
 	<div id="toolbar">
 		<input id="pass-unlock" type="password" onkeypress="on_pass_unlock_keypress(event)">
 		<button id="btn-save" onclick="save()">Save</button>
@@ -155,6 +155,8 @@
 		<input id="txt-password" type="password" oninput="validate_pass()">
 		<label for="txt-confirm">Confirm password</label>
 		<input id="txt-confirm" type="password" oninput="validate_pass()">
+		<label for="txt-filename">File name</label>
+		<input id="txt-filename" type="text">
 		<label for="txt-title">Title</label>
 		<input id="txt-title" type="text">
 		<label onclick="page().edit_main.focus()">Main text</label>
@@ -173,6 +175,8 @@
 
 <script>
 	const ERROR_CLASS = 'error';
+	const FILENAME_ATTRIBUTE = 'data-filename';
+	const DEFAULT_VAULT_NAME = 'vault';
 
 	ready(() => {
 		const editing_new = !has_content();
@@ -212,8 +216,10 @@
 			txt_confirm: id('txt-confirm'),
 			txt_title: id('txt-title'),
 			txt_codes: id('txt-codes'),
+			txt_filename: id('txt-filename'),
 			edit_main: id('edit-main'),
 			edit_notes: id('edit-notes'),
+			saved_file_name: document.body.getAttribute(FILENAME_ATTRIBUTE),
 		}
 	}
 
@@ -246,6 +252,7 @@
 	}
 
 	function download() {
+		const filename = page().saved_file_name || DEFAULT_VAULT_NAME;
 		const html = document.documentElement.outerHTML;
 		const encoder = new TextEncoder();
 		const data = `data:text/html;base64,${to_base64(encoder.encode(html))}`;
@@ -261,7 +268,7 @@
 			now.getMinutes().toString().padStart(2, '0'),
 			now.getSeconds().toString().padStart(2, '0'),
 		].join('');
-		link.download = `vault_${date}_${time}.html`;
+		link.download = `${filename}_${date}_${time}.html`;
 		link.href = data;
 		document.body.appendChild(link);
 		link.click();
@@ -305,6 +312,8 @@
 		p.txt_confirm.value = password;
 		p.txt_title.value = content.title;
 		p.txt_codes.value = content.codes.join('\n');
+		p.txt_filename.value = p.saved_file_name;
+		p.txt_filename.setAttribute('placeholder', DEFAULT_VAULT_NAME);
 		p.edit_main.innerHTML = content.main;
 		p.edit_notes.innerHTML = content.notes;
 		set_toolbar('edit');
@@ -318,6 +327,7 @@
 		p.txt_confirm.value = '';
 		p.txt_title.value = '';
 		p.txt_codes.value = '';
+		p.txt_filename.value = '';
 		p.edit_main.innerHTML = '';
 		p.edit_notes.innerHTML = '';
 	}
@@ -346,6 +356,9 @@
 		const main = p.edit_main.innerHTML;
 		const notes = p.edit_notes.innerHTML;
 		const password = p.txt_password.value;
+
+		const filename = p.txt_filename.value;
+		document.body.setAttribute(FILENAME_ATTRIBUTE, filename);
 
 		// since the form is cleared, we need to save password changes for the edit
 		p.pass_unlock.value = password;
